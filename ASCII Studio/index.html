@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ASCII Studio</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0f1115">
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <link rel="apple-touch-icon" href="./favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f1115;
+            color: #e2e8f0;
+            overflow: hidden; 
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        #drop-zone.dragover {
+            border-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        #canvas-container {
+            background-image: 
+                linear-gradient(45deg, #1a1e24 25%, transparent 25%), 
+                linear-gradient(-45deg, #1a1e24 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1a1e24 75%), 
+                linear-gradient(-45deg, transparent 75%, #1a1e24 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #111418;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-[100dvh] w-screen">
+
+    <!-- Sidebar Controls -->
+    <!-- Updated for mobile: Takes 50% of height on mobile, full height on desktop -->
+    <aside class="w-full md:w-80 flex-shrink-0 bg-gray-900 border-b md:border-b-0 md:border-r border-gray-800 flex flex-col h-[50dvh] md:h-full overflow-y-auto shadow-xl z-10">
+        <div class="p-4 md:p-6 pb-0">
+            <h1 class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 mb-1">ASCII Studio</h1>
+            <p class="text-xs text-gray-400 mb-4 md:mb-6">Convert any image to text art.</p>
+        </div>
+
+        <div class="p-4 md:p-6 flex flex-col gap-4 md:gap-6 flex-1">
+            <!-- Upload Area -->
+            <div id="drop-zone" class="border-2 border-dashed border-gray-700 rounded-xl p-4 md:p-6 text-center cursor-pointer transition-colors hover:border-blue-500 hover:bg-gray-800/50 relative">
+                <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*">
+                <svg class="w-6 h-6 md:w-8 md:h-8 mx-auto text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                <p class="text-sm font-medium text-gray-300">Tap or drop an image</p>
+            </div>
+
+            <!-- Settings -->
+            <div class="space-y-4">
+                <h3 class="text-xs uppercase tracking-wider font-semibold text-gray-500 border-b border-gray-800 pb-2">Settings</h3>
+                
+                <!-- Resolution -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm text-gray-300">Resolution</label>
+                        <span id="res-val" class="text-xs font-mono text-blue-400">120</span>
+                    </div>
+                    <input type="range" id="res-slider" min="20" max="300" value="120" class="w-full accent-blue-500">
+                </div>
+
+                <!-- Font Size -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="text-sm text-gray-300">Font Size</label>
+                        <span id="font-val" class="text-xs font-mono text-blue-400">8px</span>
+                    </div>
+                    <input type="range" id="font-slider" min="4" max="24" value="8" class="w-full accent-blue-500">
+                </div>
+
+                <!-- ASCII Set -->
+                <div>
+                    <label class="text-sm text-gray-300 block mb-1">Character Set</label>
+                    <select id="charset-select" class="w-full bg-gray-800 border border-gray-700 rounded-lg text-sm px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="detailed">Detailed (@%#*+=-:. )</option>
+                        <option value="standard">Standard (#O-.)</option>
+                        <option value="blocks">Blocks (█▓▒░ )</option>
+                        <option value="binary">Binary (01 )</option>
+                        <option value="matrix">Matrix Letters</option>
+                    </select>
+                </div>
+
+                <!-- Toggles -->
+                <div class="space-y-2 pt-2 pb-2">
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" id="color-toggle" checked class="form-checkbox h-4 w-4 text-blue-500 rounded bg-gray-800 border-gray-700">
+                        <span class="text-sm text-gray-300">Preserve Colors</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" id="invert-toggle" class="form-checkbox h-4 w-4 text-blue-500 rounded bg-gray-800 border-gray-700">
+                        <span class="text-sm text-gray-300">Invert Brightness</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" id="bg-toggle" class="form-checkbox h-4 w-4 text-blue-500 rounded bg-gray-800 border-gray-700">
+                        <span class="text-sm text-gray-300">Render Background</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="p-4 md:p-6 border-t border-gray-800 bg-gray-900/90 backdrop-blur sticky bottom-0 flex gap-2">
+            <button id="copy-btn" class="flex-1 py-2.5 px-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 border border-gray-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                Copy
+            </button>
+            <button id="download-btn" class="flex-1 py-2.5 px-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Save
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Display Area -->
+    <main id="canvas-container" class="flex-1 relative overflow-auto flex items-center justify-center min-h-[50dvh]">
+        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-600">
+            <svg class="w-12 h-12 md:w-16 md:h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <p class="font-medium text-sm md:text-base">Upload an image to see the magic</p>
+        </div>
+        
+        <canvas id="ascii-canvas" class="hidden shadow-2xl transition-opacity duration-300"></canvas>
+        
+        <div id="toast" class="fixed bottom-6 right-6 z-50 bg-gray-800 border border-gray-700 text-white px-4 py-3 rounded-lg shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            <span id="toast-msg" class="text-sm font-medium">Copied to clipboard!</span>
+        </div>
+    </main>
+
+    <canvas id="offscreen-canvas" class="hidden"></canvas>
+
+    <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('ServiceWorker registered successfully'))
+                    .catch(err => console.log('ServiceWorker registration failed: ', err));
+            });
+        }
+
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const canvas = document.getElementById('ascii-canvas');
+        const ctx = canvas.getContext('2d', { alpha: true });
+        const offscreenCanvas = document.getElementById('offscreen-canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+        const emptyState = document.getElementById('empty-state');
+        
+        // Controls
+        const resSlider = document.getElementById('res-slider');
+        const resVal = document.getElementById('res-val');
+        const fontSlider = document.getElementById('font-slider');
+        const fontVal = document.getElementById('font-val');
+        const charsetSelect = document.getElementById('charset-select');
+        const colorToggle = document.getElementById('color-toggle');
+        const invertToggle = document.getElementById('invert-toggle');
+        const bgToggle = document.getElementById('bg-toggle');
+        const copyBtn = document.getElementById('copy-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Toast
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+
+        // State variables
+        let sourceImage = null;
+        let generatedText = "";
+
+        const charSets = {
+            detailed: " .`-_':,;^=+/\"|)\\<>)iv%xclrs{*}I?!][1taeo7zjLuT#JCwfy325Fp6mqSghVd4EgXPGZbYkOA&8U$@HWM",
+            standard: " .:-=+*#%@",
+            blocks: " ░▒▓█",
+            binary: " 01",
+            matrix: " ｸﾀﾀﾏｹﾗｶﾊﾅﾔｻﾜｱﾘﾎﾃﾂﾝｲｳｴｵabcdefghijklmnopqrstuvwxyz0123456789"
+        };
+
+        const FONT_ASPECT_RATIO = 0.55; 
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', handleFileUpload);
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            if (files.length) {
+                fileInput.files = files;
+                handleFileUpload({ target: { files: files } });
+            }
+        });
+
+        resSlider.addEventListener('input', (e) => {
+            resVal.textContent = e.target.value;
+        });
+        
+        fontSlider.addEventListener('input', (e) => {
+            fontVal.textContent = e.target.value + 'px';
+        });
+
+        const reRenderTriggers = [resSlider, fontSlider, charsetSelect, colorToggle, invertToggle, bgToggle];
+        reRenderTriggers.forEach(el => {
+            el.addEventListener('change', () => {
+                if (sourceImage) generateAscii(sourceImage);
+            });
+            if (el.type === 'range') {
+                el.addEventListener('mouseup', () => { if (sourceImage) generateAscii(sourceImage); });
+                el.addEventListener('touchend', () => { if (sourceImage) generateAscii(sourceImage); });
+            }
+        });
+
+        copyBtn.addEventListener('click', copyToClipboard);
+        downloadBtn.addEventListener('click', downloadImage);
+
+        // --- Core Logic ---
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    sourceImage = img;
+                    emptyState.classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    generateAscii(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function generateAscii(img) {
+            const targetCols = parseInt(resSlider.value);
+            const fontSize = parseInt(fontSlider.value);
+            const useColor = colorToggle.checked;
+            const invert = invertToggle.checked;
+            const drawBg = bgToggle.checked;
+            let charset = charSets[charsetSelect.value];
+            
+            if (invert) {
+                charset = charset.split('').reverse().join('');
+            }
+
+            const imgAspectRatio = img.width / img.height;
+            const targetRows = Math.floor((targetCols / imgAspectRatio) * FONT_ASPECT_RATIO);
+
+            offscreenCanvas.width = targetCols;
+            offscreenCanvas.height = targetRows;
+            
+            offscreenCtx.fillStyle = '#ffffff';
+            offscreenCtx.fillRect(0, 0, targetCols, targetRows);
+            
+            offscreenCtx.drawImage(img, 0, 0, targetCols, targetRows);
+            
+            const imageData = offscreenCtx.getImageData(0, 0, targetCols, targetRows);
+            const pixels = imageData.data;
+
+            ctx.font = `${fontSize}px monospace`;
+            const charWidth = ctx.measureText("M").width;
+            const charHeight = fontSize;
+
+            canvas.width = targetCols * charWidth;
+            canvas.height = targetRows * charHeight;
+
+            if (drawBg) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.font = `${fontSize}px monospace`;
+            ctx.textBaseline = 'top';
+
+            generatedText = ""; 
+
+            for (let y = 0; y < targetRows; y++) {
+                let rowText = "";
+                for (let x = 0; x < targetCols; x++) {
+                    const offset = (y * targetCols + x) * 4;
+                    const r = pixels[offset];
+                    const g = pixels[offset + 1];
+                    const b = pixels[offset + 2];
+                    const a = pixels[offset + 3];
+
+                    let brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+                    
+                    if (a < 255) {
+                        const alphaFactor = a / 255;
+                        brightness = brightness * alphaFactor + 255 * (1 - alphaFactor); 
+                    }
+
+                    const charIndex = Math.floor((brightness / 255) * (charset.length - 1));
+                    const safeIndex = Math.max(0, Math.min(charIndex, charset.length - 1));
+                    const asciiChar = charset[safeIndex];
+
+                    rowText += asciiChar;
+
+                    if (!drawBg && asciiChar === ' ' && !useColor) continue; 
+
+                    if (useColor) {
+                        if (a > 0) {
+                            ctx.fillStyle = `rgb(${r},${g},${b})`;
+                            ctx.fillText(asciiChar, x * charWidth, y * charHeight);
+                        }
+                    } else {
+                        ctx.fillStyle = drawBg ? '#ffffff' : '#000000';
+                        ctx.fillText(asciiChar, x * charWidth, y * charHeight);
+                    }
+                }
+                generatedText += rowText + '\n';
+            }
+        }
+
+        // --- Utilities ---
+        function showToast(message) {
+            toastMsg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function copyToClipboard() {
+            if (!generatedText) {
+                showToast("No image loaded!");
+                return;
+            }
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = generatedText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast("ASCII text copied to clipboard!");
+            } catch (err) {
+                showToast("Failed to copy text.");
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function downloadImage() {
+            if (!sourceImage) {
+                showToast("No image loaded!");
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = 'ascii-art.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast("Image saved!");
+        }
+    </script>
+</body>
+</html>
