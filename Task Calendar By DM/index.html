@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Task Calendar</title>
+
+    <!-- PWA Meta Tags & Icons -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#f0f2f5">
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <link rel="apple-touch-icon" href="./favicon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-base: #f0f2f5;
+            --glass-bg: rgba(255, 255, 255, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            --cell-border: rgba(0, 0, 0, 0.05);
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --holiday-poya-bg: rgba(255, 59, 48, 0.1);
+            --holiday-bank-bg: rgba(52, 199, 89, 0.1);
+            --weekend-bg: rgba(0, 0, 0, 0.025);
+            
+            /* Fluid Background Gradients */
+            --gradient-1: #ffb6ff;
+            --gradient-2: #b3d4ff;
+            --gradient-3: #b1ffce;
+        }
+
+        .dark {
+            --bg-base: #000000;
+            --glass-bg: rgba(28, 28, 30, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            --cell-border: rgba(255, 255, 255, 0.05);
+            --text-main: #f5f5f7;
+            --text-muted: #a1a1a6;
+            --holiday-poya-bg: rgba(255, 69, 58, 0.15);
+            --holiday-bank-bg: rgba(48, 209, 88, 0.15);
+            --weekend-bg: rgba(255, 255, 255, 0.025);
+
+            /* Dark Fluid Background Gradients */
+            --gradient-1: #4a154b;
+            --gradient-2: #143464;
+            --gradient-3: #11492b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overscroll-behavior: none;
+            transition: background-color 0.5s ease;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            transition: all 0.5s ease;
+        }
+        
+        body::before {
+            background: radial-gradient(circle at 15% 50%, var(--gradient-1), transparent 50%),
+                        radial-gradient(circle at 85% 30%, var(--gradient-2), transparent 50%),
+                        radial-gradient(circle at 50% 80%, var(--gradient-3), transparent 50%);
+            filter: blur(80px);
+            opacity: 0.6;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+        .dark .glass-btn { background: rgba(255, 255, 255, 0.05); }
+        .glass-btn:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.02); }
+        .dark .glass-btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .glass-btn:active { transform: scale(0.98); }
+
+        .glass-btn-primary {
+            background: rgba(10, 132, 255, 0.8);
+            color: white;
+            border: none;
+        }
+        .glass-btn-primary:hover { background: rgba(10, 132, 255, 1); }
+
+        .calendar-container {
+            overflow: hidden;
+            border-radius: 24px;
+        }
+
+        .day-header {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--cell-border);
+            padding: 12px 0;
+        }
+
+        .day-cell {
+            border-right: 1px solid var(--cell-border);
+            border-bottom: 1px solid var(--cell-border);
+            min-height: 100px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+        }
+        
+        .weekend-cell {
+            background: var(--weekend-bg);
+        }
+        
+        /* Box Hover Animation */
+        .day-cell::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0);
+            transition: box-shadow 0.3s ease, background-color 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .day-cell:hover::after {
+            box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .dark .day-cell:hover::after {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .day-cell.today .day-number {
+            background-color: #ff3b30;
+            color: white !important;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .day-cell.poya { background-color: var(--holiday-poya-bg); }
+        .day-cell.mercantile { background-color: var(--holiday-bank-bg); }
+
+        .task-bar {
+            border-radius: 6px;
+            padding: 3px 8px;
+            margin: 2px 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .glass-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s;
+            color-scheme: light;
+        }
+        .dark .glass-input {
+            background: rgba(0, 0, 0, 0.2);
+            color-scheme: dark;
+        }
+        .glass-input:focus { border-color: rgba(10, 132, 255, 0.5); }
+
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .color-swatch.selected {
+            transform: scale(1.15);
+            border-color: var(--text-main);
+        }
+
+        .holiday-badge {
+            font-size: 0.55rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .badge-poya { background: rgba(255, 59, 48, 0.2); color: #ff3b30; }
+        .badge-mercantile { background: rgba(52, 199, 89, 0.2); color: #34c759; }
+        .badge-api { background: rgba(10, 132, 255, 0.2); color: #0a84ff; }
+        
+        .dark .badge-poya { color: #ff6961; }
+        .dark .badge-mercantile { color: #32d74b; }
+        .dark .badge-api { color: #5e5ce6; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(150, 150, 150, 0.5); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-4 px-2 sm:px-6 md:py-8">
+
+    <div class="w-full max-w-7xl flex-1 flex flex-col gap-4">
+        
+        <!-- Glass Header -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-wrap justify-between items-center z-10 gap-4">
+            <button id="themeToggle" class="glass-btn px-4 py-2 rounded-xl text-sm font-medium">🌙 Dark</button>
+            <div class="flex items-center gap-4 mx-auto sm:mx-0">
+                <button onclick="changeMonth(-1)" class="glass-btn p-2 rounded-full w-10 h-10 flex items-center justify-center">❮</button>
+                <h1 class="text-sm sm:text-2xl font-semibold text-center w-56 tracking-tight" id="monthYearDisplay">Month Year</h1>
+                <button onclick="changeMonth(1)" class="glass-btn p-2 rounded-full w-10 h-10 flex items-center justify-center">❯</button>
+            </div>
+            <button onclick="today()" class="glass-btn px-4 py-2 rounded-xl text-sm font-medium">Today</button>
+        </div>
+
+        <!-- Calendar Grid Panel -->
+        <div class="glass-panel calendar-container flex-1 flex flex-col">
+            <!-- Days of Week Header (Sat & Sun in Red) -->
+            <div class="grid grid-cols-7 w-full text-center bg-[rgba(0,0,0,0.02)] dark:bg-[rgba(255,255,255,0.02)]">
+                <div class="day-header text-red-500">Sun</div>
+                <div class="day-header">Mon</div>
+                <div class="day-header">Tue</div>
+                <div class="day-header">Wed</div>
+                <div class="day-header">Thu</div>
+                <div class="day-header">Fri</div>
+                <div class="day-header text-red-500">Sat</div>
+            </div>
+            
+            <!-- Days Grid -->
+            <div id="calendarGrid" class="grid grid-cols-7 w-full flex-1 auto-rows-fr">
+                <!-- Javascript will populate days here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal (Hidden by default) -->
+    <div id="dayModal" class="fixed inset-0 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 p-4" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+        <div class="glass-panel w-full max-w-lg rounded-3xl transform scale-95 transition-transform duration-300 overflow-hidden flex flex-col max-h-[90vh]" id="modalContent">
+            
+            <!-- Modal Header with Add Button -->
+            <div class="p-5 border-b border-[var(--cell-border)] flex justify-between items-center bg-[rgba(255,255,255,0.1)]">
+                <h2 class="text-2xl font-semibold tracking-tight" id="modalDateTitle">Date</h2>
+                <div class="flex items-center gap-2">
+                    <button id="addEventBtnToggle" onclick="showAddEventForm()" class="glass-btn-primary w-9 h-9 rounded-full flex items-center justify-center text-xl shadow-md transition-transform hover:rotate-90" title="Add Event">+</button>
+                    <button onclick="closeModal()" class="glass-btn w-9 h-9 rounded-full flex items-center justify-center text-lg leading-none">&times;</button>
+                </div>
+            </div>
+
+            <!-- Modal Body Area -->
+            <div class="p-5 overflow-y-auto flex-1">
+                
+                <!-- VIEW STATE (Events List & Holiday Toggle) -->
+                <div id="modalViewState" class="space-y-6">
+                    
+                    <!-- Task List (Priority) -->
+                    <div>
+                        <label class="block text-xs font-semibold mb-2 uppercase tracking-wider text-[var(--text-muted)]">Scheduled Events</label>
+                        <div id="modalTaskList" class="space-y-3 mb-4 min-h-[100px]">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Holiday Type Selection (Secondary) -->
+                    <div class="pt-4 border-t border-[var(--cell-border)]">
+                        <label class="block text-xs font-semibold mb-2 uppercase tracking-wider text-[var(--text-muted)]">Day Status Override</label>
+                        <select id="holidaySelect" class="glass-input cursor-pointer" onchange="markUnsavedChanges()">
+                            <option value="none">Regular Working Day</option>
+                            <option value="poya">🔴 Mark as Poya Day</option>
+                            <option value="mercantile">🟢 Mark as Bank/Mercantile Holiday</option>
+                        </select>
+                        <p class="text-[0.65rem] text-[var(--text-muted)] mt-1 ml-1">*Public holidays are automatically fetched.</p>
+                    </div>
+                </div>
+
+                <!-- ADD/EDIT STATE (Form) -->
+                <div id="modalAddState" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 uppercase tracking-wider text-[var(--text-muted)]">Event Title</label>
+                        <input type="text" id="newTaskInput" placeholder="What's happening?" class="glass-input text-base font-medium">
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs font-semibold mb-1 uppercase tracking-wider text-[var(--text-muted)]">Start Time</label>
+                            <input type="time" id="taskStartTime" class="glass-input">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-semibold mb-1 uppercase tracking-wider text-[var(--text-muted)]">End Time</label>
+                            <input type="time" id="taskEndTime" class="glass-input">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold mb-1 uppercase tracking-wider text-[var(--text-muted)]">Notes</label>
+                        <textarea id="taskNotes" rows="3" placeholder="Add some details..." class="glass-input resize-none"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold mb-2 uppercase tracking-wider text-[var(--text-muted)]">Color Tag</label>
+                        <div class="flex items-center gap-3 flex-wrap" id="colorPicker">
+                            <div class="color-swatch selected" style="background-color: rgba(59, 130, 246, 0.9);" data-color="rgba(59, 130, 246, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(239, 68, 68, 0.9);" data-color="rgba(239, 68, 68, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(234, 179, 8, 0.9);" data-color="rgba(234, 179, 8, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(34, 197, 94, 0.9);" data-color="rgba(34, 197, 94, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(168, 85, 247, 0.9);" data-color="rgba(168, 85, 247, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(249, 115, 22, 0.9);" data-color="rgba(249, 115, 22, 0.9)"></div>
+                            <div class="color-swatch" style="background-color: rgba(100, 116, 139, 0.9);" data-color="rgba(100, 116, 139, 0.9)"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-4 border-t border-[var(--cell-border)]">
+                        <button onclick="hideAddEventForm()" class="glass-btn flex-1 py-3 rounded-xl font-medium">Cancel</button>
+                        <button onclick="saveTaskToList()" class="glass-btn-primary flex-1 py-3 rounded-xl font-medium shadow-md">Save Event</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer (Save overall changes) -->
+            <div id="modalFooter" class="p-4 border-t border-[var(--cell-border)] bg-[rgba(255,255,255,0.05)]">
+                <button onclick="saveChanges()" class="glass-btn-primary w-full py-3 rounded-xl font-semibold text-lg shadow-lg">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('PWA ServiceWorker registered with scope:', registration.scope))
+                    .catch(error => console.log('ServiceWorker registration failed:', error));
+            });
+        }
+
+        let currentDate = new Date();
+        let selectedDateStr = null;
+        let pendingTasksForDay = []; 
+        let hasUnsavedChanges = false;
+        let editingTaskId = null; // Track if we are editing
+        
+        // Load data from localStorage or set defaults
+        let appData = JSON.parse(localStorage.getItem('glassCalendarData')) || {
+            tasks: {}, 
+            holidays: {},
+            fetchedHolidays: {} // Store fetched API holidays by year
+        };
+
+        const gridEl = document.getElementById('calendarGrid');
+        const monthYearEl = document.getElementById('monthYearDisplay');
+        const modal = document.getElementById('dayModal');
+        const modalContent = document.getElementById('modalContent');
+        const themeToggle = document.getElementById('themeToggle');
+        
+        const viewState = document.getElementById('modalViewState');
+        const addState = document.getElementById('modalAddState');
+        const modalFooter = document.getElementById('modalFooter');
+        const addEventBtnToggle = document.getElementById('addEventBtnToggle');
+
+        // --- Theme Management ---
+        let isDark = localStorage.getItem('glassTheme') === 'dark';
+        if (isDark) document.documentElement.classList.add('dark');
+        updateThemeBtn();
+
+        themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('glassTheme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('glassTheme', 'light');
+            }
+            updateThemeBtn();
+        });
+
+        function updateThemeBtn() {
+            themeToggle.innerText = isDark ? "☀️ Light Mode" : "🌙 Dark Mode";
+        }
+
+        // --- API Integration (Sri Lankan Holidays) ---
+        async function fetchSriLankanHolidays(year) {
+            // Avoid re-fetching if already downloaded for the year
+            if (appData.fetchedHolidays && appData.fetchedHolidays[year]) return;
+
+            try {
+                const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/LK`);
+                if (response.ok) {
+                    const holidays = await response.json();
+                    if (!appData.fetchedHolidays) appData.fetchedHolidays = {};
+                    appData.fetchedHolidays[year] = holidays;
+                    
+                    // Persist newly fetched holidays and re-render
+                    localStorage.setItem('glassCalendarData', JSON.stringify(appData));
+                    renderCalendar(); 
+                }
+            } catch (error) {
+                console.log("Offline or unable to fetch holidays", error);
+            }
+        }
+
+        // --- Calendar Rendering ---
+        function renderCalendar() {
+            gridEl.innerHTML = '';
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Trigger holiday fetch for the visible year
+            fetchSriLankanHolidays(year);
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthYearEl.innerText = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const todayDate = new Date();
+            const isCurrentMonth = todayDate.getFullYear() === year && todayDate.getMonth() === month;
+            
+            const apiHolidaysForYear = appData.fetchedHolidays?.[year] || [];
+
+            // Empty cells before start of month
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = `border-r border-b border-[var(--cell-border)] opacity-20 ${(i === 0 || i === 6) ? 'weekend-cell' : ''}`;
+                gridEl.appendChild(emptyCell);
+            }
+
+            // Days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateObj = new Date(year, month, day);
+                const dayOfWeek = dateObj.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const cell = document.createElement('div');
+                cell.className = `day-cell flex flex-col pt-1 px-1 ${isWeekend ? 'weekend-cell' : ''}`;
+                cell.onclick = () => openModal(dateStr, day, monthNames[month], year);
+                
+                // Today styling
+                if (isCurrentMonth && day === todayDate.getDate()) {
+                    cell.classList.add('today');
+                }
+
+                // Holiday styling (Manual Overrides)
+                const manualHolidayType = appData.holidays[dateStr];
+                if (manualHolidayType === 'poya') cell.classList.add('poya');
+                else if (manualHolidayType === 'mercantile') cell.classList.add('mercantile');
+
+                // API Holidays for this day
+                const dayApiHolidays = apiHolidaysForYear.filter(h => h.date === dateStr);
+                
+                // Weekend Red Number Logic
+                const numColorClass = isWeekend ? 'text-red-500 font-bold' : 'font-medium';
+
+                // Inner HTML for the cell
+                let cellHtml = `<div class="relative w-full flex flex-col items-start px-1 mb-1">
+                                    <div class="flex justify-between w-full">
+                                        <span class="day-number text-sm z-10 ${numColorClass} mt-1 ml-1">${day}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1 mt-1 z-10 w-full">`;
+                
+                // Badges
+                if (manualHolidayType === 'poya') cellHtml += `<span class="holiday-badge badge-poya">Poya</span>`;
+                if (manualHolidayType === 'mercantile') cellHtml += `<span class="holiday-badge badge-mercantile">Bank</span>`;
+                
+                // Render API fetched holidays
+                dayApiHolidays.forEach(apiH => {
+                    cellHtml += `<span class="holiday-badge badge-api" title="${escapeHtml(apiH.name)}">${escapeHtml(apiH.name)}</span>`;
+                });
+                
+                cellHtml += `</div></div><div class="flex-1 overflow-y-auto pb-1 space-y-1 w-full mt-1">`;
+
+                // Render tasks
+                const dayTasks = appData.tasks[dateStr] || [];
+                dayTasks.forEach(task => {
+                    const timeStr = task.startTime ? `<span class="opacity-75 mr-1">${task.startTime}</span>` : '';
+                    cellHtml += `
+                        <div class="task-bar" style="background-color: ${task.color}">
+                            ${timeStr}${escapeHtml(task.title)}
+                        </div>
+                    `;
+                });
+
+                cellHtml += `</div>`;
+                cell.innerHTML = cellHtml;
+                gridEl.appendChild(cell);
+            }
+            
+            // Fill remaining grid spaces
+            const totalCells = firstDay + daysInMonth;
+            const remaining = (7 - (totalCells % 7)) % 7;
+            for(let i = 0; i < remaining; i++) {
+                const dayIndex = (firstDay + daysInMonth + i) % 7;
+                const emptyCell = document.createElement('div');
+                emptyCell.className = `border-r border-b border-[var(--cell-border)] opacity-20 ${(dayIndex === 0 || dayIndex === 6) ? 'weekend-cell' : ''}`;
+                gridEl.appendChild(emptyCell);
+            }
+        }
+
+        // --- Navigation ---
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function today() {
+            currentDate = new Date();
+            renderCalendar();
+        }
+
+        // --- Modal & Task Management ---
+        function openModal(dateStr, day, monthName, year) {
+            selectedDateStr = dateStr;
+            hasUnsavedChanges = false;
+            document.getElementById('modalDateTitle').innerText = `${monthName} ${day}, ${year}`;
+            
+            // Load Holiday State
+            const holidayType = appData.holidays[dateStr] || 'none';
+            document.getElementById('holidaySelect').value = holidayType;
+
+            // Load Tasks into pending state
+            pendingTasksForDay = JSON.parse(JSON.stringify(appData.tasks[dateStr] || []));
+            
+            // Reset to View State
+            hideAddEventForm();
+            renderModalTaskList();
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+            
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        // Switch between list view and add/edit view inside modal
+        function showAddEventForm(taskId = null) {
+            editingTaskId = taskId;
+            
+            if (taskId !== null) {
+                // Edit Mode
+                const task = pendingTasksForDay.find(t => t.id === taskId);
+                if(task) {
+                    document.getElementById('newTaskInput').value = task.title || '';
+                    document.getElementById('taskStartTime').value = task.startTime || '';
+                    document.getElementById('taskEndTime').value = task.endTime || '';
+                    document.getElementById('taskNotes').value = task.notes || '';
+                    
+                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                    const swatch = document.querySelector(`.color-swatch[data-color="${task.color}"]`);
+                    if(swatch) swatch.classList.add('selected');
+                }
+            } else {
+                // Add Mode
+                document.getElementById('newTaskInput').value = '';
+                document.getElementById('taskStartTime').value = '';
+                document.getElementById('taskEndTime').value = '';
+                document.getElementById('taskNotes').value = '';
+                
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                document.querySelector('.color-swatch').classList.add('selected'); // default to first
+            }
+
+            viewState.classList.add('hidden');
+            modalFooter.classList.add('hidden');
+            addEventBtnToggle.classList.add('hidden');
+            addState.classList.remove('hidden');
+            
+            if(taskId === null) document.getElementById('newTaskInput').focus();
+        }
+
+        function hideAddEventForm() {
+            addState.classList.add('hidden');
+            viewState.classList.remove('hidden');
+            modalFooter.classList.remove('hidden');
+            addEventBtnToggle.classList.remove('hidden');
+            editingTaskId = null;
+        }
+
+        function markUnsavedChanges() {
+            hasUnsavedChanges = true;
+        }
+
+        function renderModalTaskList() {
+            const listEl = document.getElementById('modalTaskList');
+            if (pendingTasksForDay.length === 0) {
+                listEl.innerHTML = `
+                    <div class="py-10 text-center text-[var(--text-muted)] bg-[rgba(255,255,255,0.05)] rounded-2xl border border-dashed border-[var(--glass-border)]">
+                        <div class="text-3xl mb-2 opacity-50">🗓️</div>
+                        No events scheduled.
+                    </div>`;
+                return;
+            }
+
+            listEl.innerHTML = pendingTasksForDay.map((task) => {
+                const timeString = (task.startTime || task.endTime) ? 
+                    `<div class="text-xs opacity-75 mt-0.5">🕒 ${task.startTime || '?'} - ${task.endTime || '?'}</div>` : '';
+                
+                const noteString = task.notes ? 
+                    `<div class="text-xs opacity-60 mt-1 italic line-clamp-2">${escapeHtml(task.notes)}</div>` : '';
+
+                return `
+                <div class="group flex items-stretch justify-between bg-[rgba(255,255,255,0.4)] dark:bg-[rgba(0,0,0,0.3)] border border-[var(--glass-border)] rounded-xl overflow-hidden shadow-sm transition-all hover:shadow-md cursor-pointer" onclick="showAddEventForm(${task.id})">
+                    <div class="w-2 shrink-0" style="background-color: ${task.color};"></div>
+                    <div class="flex-1 p-3 overflow-hidden">
+                        <div class="text-sm font-semibold truncate">${escapeHtml(task.title)}</div>
+                        ${timeString}
+                        ${noteString}
+                    </div>
+                    <div class="flex flex-col justify-center px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="removePendingTask(event, ${task.id})" class="glass-btn text-xs p-2 rounded-lg text-red-500 hover:bg-red-500/10 border-red-500/30" title="Delete Event">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function saveTaskToList() {
+            const input = document.getElementById('newTaskInput');
+            const title = input.value.trim();
+            if (!title) {
+                input.classList.add('translate-x-1');
+                setTimeout(() => input.classList.remove('translate-x-1'), 150);
+                return;
+            }
+
+            const startTime = document.getElementById('taskStartTime').value;
+            const endTime = document.getElementById('taskEndTime').value;
+            const notes = document.getElementById('taskNotes').value.trim();
+
+            const selectedSwatch = document.querySelector('.color-swatch.selected');
+            const color = selectedSwatch ? selectedSwatch.dataset.color : 'rgba(59, 130, 246, 0.9)';
+
+            const taskData = {
+                id: editingTaskId !== null ? editingTaskId : Date.now(),
+                title: title,
+                color: color,
+                startTime: startTime,
+                endTime: endTime,
+                notes: notes
+            };
+
+            if (editingTaskId !== null) {
+                // Update existing
+                const index = pendingTasksForDay.findIndex(t => t.id === editingTaskId);
+                if (index !== -1) pendingTasksForDay[index] = taskData;
+            } else {
+                // Add new
+                pendingTasksForDay.push(taskData);
+            }
+
+            markUnsavedChanges();
+            hideAddEventForm();
+            renderModalTaskList();
+        }
+
+        function removePendingTask(e, taskId) {
+            e.stopPropagation(); // prevent triggering edit opening
+            pendingTasksForDay = pendingTasksForDay.filter(t => t.id !== taskId);
+            markUnsavedChanges();
+            renderModalTaskList();
+        }
+
+        function saveChanges() {
+            if (!selectedDateStr) return;
+
+            // Save Holiday Override
+            const holidayType = document.getElementById('holidaySelect').value;
+            if (holidayType === 'none') {
+                delete appData.holidays[selectedDateStr];
+            } else {
+                appData.holidays[selectedDateStr] = holidayType;
+            }
+
+            // Save Tasks
+            if (pendingTasksForDay.length > 0) {
+                // Sort tasks chronologically by start time (empty times go to end)
+                pendingTasksForDay.sort((a, b) => {
+                    if (!a.startTime) return 1;
+                    if (!b.startTime) return -1;
+                    return a.startTime.localeCompare(b.startTime);
+                });
+                appData.tasks[selectedDateStr] = pendingTasksForDay;
+            } else {
+                delete appData.tasks[selectedDateStr];
+            }
+
+            // Persist
+            localStorage.setItem('glassCalendarData', JSON.stringify(appData));
+            
+            closeModal();
+            renderCalendar();
+        }
+
+        // Color Picker Interaction
+        document.querySelectorAll('.color-swatch').forEach(swatch => {
+            swatch.addEventListener('click', function() {
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        // Utilities
+        function escapeHtml(unsafe) {
+            if(!unsafe) return '';
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        // Initialize App
+        renderCalendar();
+
+    </script>
+</body>
+</html>
