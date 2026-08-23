@@ -80,3 +80,6 @@ This project is licensed under the **MIT License** — see the [LICENSE](https:/
 
 <img width="1915" height="917" alt="Screenshot 2026-08-23 074558" src="https://github.com/user-attachments/assets/b5d81c1a-7e52-486a-b5f0-356ed13869a1" />
 
+<img width="1918" height="1031" alt="Screenshot 2026-08-23 081652" src="https://github.com/user-attachments/assets/d0f084cc-2753-480a-9c68-596656745d3f" />
+
+<img width="1917" height="1032" alt="Screenshot 2026-08-23 081745" src="https://github.com/user-attachments/assets/04f836b4-f9db-4334-b3c3-0c8835c04b8d" />
