@@ -76,3 +76,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](https:/
 
 ---
 
+## Screenshots
+
+<img width="1915" height="917" alt="Screenshot 2026-08-23 074558" src="https://github.com/user-attachments/assets/b5d81c1a-7e52-486a-b5f0-356ed13869a1" />
+
